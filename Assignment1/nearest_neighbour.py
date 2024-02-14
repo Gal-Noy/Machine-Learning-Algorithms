@@ -1,5 +1,9 @@
+import random
+
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial import distance
+
 
 def gensmallm(x_list: list, y_list: list, m: int):
     """
@@ -30,6 +34,14 @@ class KNNClassifier:
         self.x_train = x_train
         self.y_train = y_train
 
+    def predict(self, x_test):
+        distances = np.array([[distance.euclidean(x1, x2) for x1 in self.x_train] for x2 in x_test])
+        knn_indices = np.argsort(distances)[:, :self.k]
+        knn_labels = np.array([self.y_train[knn_index] for knn_index in knn_indices])
+        y_test_prediction = np.array([np.bincount(label.astype(int)).argmax() for label in knn_labels])
+        return y_test_prediction.reshape(-1, 1)
+
+
 def learnknn(k: int, x_train: np.array, y_train: np.array):
     """
 
@@ -41,6 +53,7 @@ def learnknn(k: int, x_train: np.array, y_train: np.array):
     classifier = KNNClassifier(k, x_train, y_train)
     return classifier
 
+
 def predictknn(classifier, x_test: np.array):
     """
 
@@ -48,12 +61,7 @@ def predictknn(classifier, x_test: np.array):
     :param x_test: numpy array of size (n, d) containing test examples that will be classified
     :return: numpy array of size (n, 1) classifying the examples in x_test
     """
-    distances = np.array([[distance.euclidean(x1, x2) for x1 in classifier.x_train] for x2 in x_test])
-    knn_indices = np.argsort(distances)[:, :classifier.k]
-    knn_labels = classifier.y_train[knn_indices]
-    y_test_prediction = np.array([np.bincount(label.astype(int)).argmax() for label in knn_labels]).reshape(-1, 1)
-    return y_test_prediction
-
+    return classifier.predict(x_test)
 
 
 def simple_test():
@@ -89,9 +97,95 @@ def simple_test():
     print(f"The {i}'th test sample was classified as {preds[i]}")
 
 
+def load_data():
+    data = np.load('mnist_all.npz')
+
+    train2 = data['train2']
+    train3 = data['train3']
+    train5 = data['train5']
+    train6 = data['train6']
+
+    test2 = data['test2']
+    test3 = data['test3']
+    test5 = data['test5']
+    test6 = data['test6']
+
+    return train2, train3, train5, train6, test2, test3, test5, test6
+
+
+def mnist_1nn():
+    train2, train3, train5, train6, test2, test3, test5, test6 = load_data()
+
+    sample_sizes = [_ for _ in range(10, 101, 10)]
+
+    errors = {size: [] for size in sample_sizes}
+    max_errors = {size: 0 for size in sample_sizes}
+    min_errors = {size: 1 for size in sample_sizes}
+    avg_errors = {size: 0 for size in sample_sizes}
+
+    for size in sample_sizes:
+        for _ in range(10):
+            x_train, y_train = gensmallm([train2, train3, train5, train6], [2, 3, 5, 6], size)
+            x_test, y_test = gensmallm([test2, test3, test5, test6], [2, 3, 5, 6], 50)
+
+            classifer = learnknn(1, x_train, y_train)
+            preds = predictknn(classifer, x_test)
+
+            errors[size].append(np.mean(np.vstack(y_test) != np.vstack(preds)))
+
+        max_errors[size] = max(errors[size])
+        min_errors[size] = min(errors[size])
+        avg_errors[size] = np.mean(errors[size])
+
+        print(
+            f"Sample size: {size}, avg error: {avg_errors[size]}, max error: {max_errors[size]}, min error: {min_errors[size]}")
+
+    display_plot(sample_sizes, avg_errors.values(), max_errors.values(), min_errors.values(),
+                 'Average error of 1-NN on MNIST dataset', 'Sample size', 'Error')
+
+
+def mnist_knn():
+    train2, train3, train5, train6, test2, test3, test5, test6 = load_data()
+
+    k_values = [_ for _ in range(1, 11)]
+
+    errors = {k: [] for k in k_values}
+    max_errors = {k: 0 for k in k_values}
+    min_errors = {k: 1 for k in k_values}
+    avg_errors = {k: 0 for k in k_values}
+
+    for k in k_values:
+        for _ in range(10):
+            x_train, y_train = gensmallm([train2, train3, train5, train6], [2, 3, 5, 6], 200)
+            x_test, y_test = gensmallm([test2, test3, test5, test6], [2, 3, 5, 6], 50)
+
+            classifer = learnknn(k, x_train, y_train)
+            preds = predictknn(classifer, x_test)
+
+            errors[k].append(np.mean(np.vstack(y_test) != np.vstack(preds)))
+
+        max_errors[k] = max(errors[k])
+        min_errors[k] = min(errors[k])
+        avg_errors[k] = np.mean(errors[k])
+
+        print(f"k: {k}, avg error: {avg_errors[k]}, max error: {max_errors[k]}, min error: {min_errors[k]}")
+
+    display_plot(k_values, avg_errors.values(), max_errors.values(), min_errors.values(),
+                 'Average error of k-NN on MNIST dataset', 'k', 'Error')
+
+
+def display_plot(x, y, max_errors, min_errors, title, xlabel, ylabel):
+    plt.plot(x, y, marker='o', color='b')
+    plt.plot(x, max_errors, marker='o', color='r', linestyle='None')
+    plt.plot(x, min_errors, marker='o', color='g', linestyle='None')
+    plt.xticks(x)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
+    plt.show()
+
+
 if __name__ == '__main__':
-
-    # before submitting, make sure that the function simple_test runs without errors
-    simple_test()
-
-
+    # simple_test()
+    # mnist_1nn()
+    mnist_knn()
