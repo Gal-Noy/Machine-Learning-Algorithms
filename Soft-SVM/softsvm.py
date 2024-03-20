@@ -89,10 +89,11 @@ def run_softsvm(trainX, testX, trainy, testy, m, d, lambdas, repeats):
         min_max_avg_train_errors[l] = (np.min(train_errors[l]), np.max(train_errors[l]), np.mean(train_errors[l]))
         min_max_avg_test_errors[l] = (np.min(test_errors[l]), np.max(test_errors[l]), np.mean(test_errors[l]))
 
-    # plot_errors(lambdas, train_errors, test_errors)
-    plot_results(lambdas, train_errors, min_max_avg_train_errors, "Train error", "blue")
-    plot_results(lambdas, test_errors, min_max_avg_test_errors, "Test error", "red")
-    plt.show()
+    if m == 100:
+        plot_small_sample(lambdas, train_errors, min_max_avg_train_errors, "Train error: m = 100", "blue")
+        plot_small_sample(lambdas, test_errors, min_max_avg_test_errors, "Test error: m = 100", "red")
+    else:
+        plot_large_sample(lambdas, train_errors, test_errors)
 
 
 def mnist_softsvm():
@@ -102,43 +103,35 @@ def mnist_softsvm():
     d = trainX.shape[1]
 
     # small sample
-    lambdas = [10 ** n for n in range(1, 11)]
-    run_softsvm(trainX, testX, trainy, testy, 100, d, lambdas, 10)
+    # lambdas = [10 ** n for n in range(1, 11)]
+    # run_softsvm(trainX, testX, trainy, testy, 100, d, lambdas, 10)
 
     # large sample
-    # lambdas = [1, 3, 5, 8]
-    # run_softsvm(trainX, testX, trainy, testy, 1000, d, lambdas)
+    lambdas = [10 ** n for n in [1, 3, 5, 8]]
+    run_softsvm(trainX, testX, trainy, testy, 1000, d, lambdas, 1)
+
+    plt.title("Soft SVM")
+    plt.xscale('log')
+    plt.xlabel("Lambda")
+    plt.ylabel("Error")
+    plt.legend()
+    plt.show()
 
 
-def plot_results(lambdas, errors, min_max_avg, label, line_color):
+def plot_small_sample(lambdas, errors, min_max_avg, label, line_color):
     min_errors = [l_err[0] for l_err in min_max_avg.values()]
     max_errors = [l_err[1] for l_err in min_max_avg.values()]
     avg_errors = [l_err[2] for l_err in min_max_avg.values()]
     min_distance = [a - b for a, b in zip(avg_errors, min_errors)]
     max_distance = [b - a for a, b in zip(avg_errors, max_errors)]
     error_bar = np.array([min_distance, max_distance])
-    plt.xscale('log')
     plt.plot(lambdas, avg_errors, color=line_color, marker="o", label=label)
     plt.errorbar(lambdas, avg_errors, yerr=error_bar, fmt="none")
-    plt.xlabel("Lambda")
-    plt.ylabel("Error")
-    plt.legend()
 
-def plot_errors(lambdas, train_errors, test_errors):
-    fig, ax = plt.subplots()
 
-    for l in lambdas:
-        ax.plot([l] * len(train_errors[l]), train_errors[l], 'o', color='blue')
-        ax.plot([l] * len(test_errors[l]), test_errors[l], 'o', color='red')
-
-    ax.plot(lambdas, [np.mean(train_errors[l]) for l in lambdas], label='Train error', color='blue')
-    ax.plot(lambdas, [np.mean(test_errors[l]) for l in lambdas], label='Test error', color='red')
-
-    ax.set_xscale('log')
-    ax.set_xlabel('lambda')
-    ax.set_ylabel('Error')
-    ax.legend()
-    plt.show()
+def plot_large_sample(lambdas, train_errors, test_errors):
+    plt.scatter(lambdas, train_errors.values(), color='orange', label="Train error: m = 1000")
+    plt.scatter(lambdas, test_errors.values(), color='purple', label="Test error: m = 1000")
 
 
 if __name__ == '__main__':
